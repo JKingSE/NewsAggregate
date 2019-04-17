@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+     <meta charset="utf-8" />
+     <title>Sports News Aggregate</title>
+     <!-- Import jQuery -->
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+
+    <style>
+            body {
+                max-width: 1200px;
+                margin: auto;
+            }
+
+            #headerParent * {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            #header * {
+                display: inline-block;
+            }
+
+            #newsChangerParent * {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            #newsChanger * {
+                display: inline-block;
+                text-decoration: underline;
+                color: blue
+            }
+            
+            .listitem {
+                border: 3px solid royalblue;
+                padding: .5em;
+                margin: .5em;
+                text-align: left;
+            }
+            .listitem headline {
+                font-size: 100%;
+                padding-bottom: 0.1em;
+            }
+        </style>
+
+        <script>
+            "use strict";
+
+            var overallJson = JSON.parse("{}");
+
+            //URL's for the three sports
+            var nflUrl = "http://www.espn.com/espn/rss/NFL/news";
+            var nhlUrl = "http://www.espn.com/espn/rss/NHL/news";
+            var mlbUrl = "http://www.espn.com/espn/rss/MLB/news";
+            window.onload = function(){
+                init(nflUrl, nhlUrl, mlbUrl);
+            }
+
+            //Load all three url's one after the other.  Add their content to the HTML if they load successfully
+            function init(nflUrl, nhlUrl, mlbUrl){
+                document.querySelector("#newContent").innerHTML = "";
+                overallJson = JSON.parse("{}");
+
+                $.get(nflUrl).done(function(data){addToCurrentJson(data);}).always(
+                    $.get(nhlUrl).done(function(data){addToCurrentJson(data);}).always(
+                        $.get(mlbUrl).done(function(data){addToCurrentJson(data);}).fail(function() {
+                            if (document.querySelector("#newContent").innerHTML === "") {
+                                document.querySelector("#newContent").innerHTML = "<b>No sports news has been loaded.</b>";
+                            }
+                        })
+                    )
+                );
+
+                loadFavorites();
+            }
+
+            //Pretty much same as the initial method, but only loads one
+            function showOnlyOne(url) {
+                document.querySelector("#newContent").innerHTML = "";
+                overallJson = JSON.parse("{}");
+
+                $.get(url).done(function(data){addToCurrentJson(data);}).fail(function() {
+                    if (document.querySelector("#newContent").innerHTML === "") {
+                        document.querySelector("#newContent").innerHTML = "<b>No sports news has been loaded.</b>";
+                    }
+                });
+            }
+
+            //Method to add the content from the current URL to the HTML
+            function addToCurrentJson(data) {
+                var receivedItems = data.querySelectorAll("item");
+
+                //Set the logo
+                var image = data.querySelector("image")
+                var logoSrc = image.querySelector("url").firstChild.nodeValue;
+                var logoLink = image.querySelector("link").firstChild.nodeValue;
+                $("#logo").attr("src",logoSrc);
+                $("#logoLink").attr("href",logoLink);
+
+                for (var i=0;  i<receivedItems.length; i++){
+                    var curJson = JSON.parse('{}');
+                    var newsItem = receivedItems[i];
+
+                    var title = newsItem.querySelector("title").firstChild.nodeValue;
+                    var description = newsItem.querySelector("description").firstChild.nodeValue;
+                    var link = newsItem.querySelector("link").firstChild.nodeValue;
+                    var pubDate = newsItem.querySelector("pubDate").firstChild.nodeValue;
+
+                    curJson["title"] = title;
+                    curJson["description"] = description;
+                    curJson["link"] = link;
+                    curJson["pubDate"] = pubDate;
+                    
+                    overallJson[pubDate] = curJson;
+                }
+
+                convertJsonToHTML(overallJson);
+            }
+
+            //Take the JSON variable created from url's and convert to html in list form
+            function convertJsonToHTML(jsonData) {
+                var html = "";
+
+                for (var key in jsonData) {
+                    var tempJson = jsonData[key];
+
+                    var line = '<div class="listitem">';
+                    line += "<headline>"+tempJson.title+"</headline>";
+                    line += '<p><i>'+tempJson.pubDate+'</i> - <a href="'+tempJson.link+'" target="_blank">See original</a></p>';
+                    if (tempJson.description != "null") {
+                        line += "<p>"+tempJson.description+"</p>";
+                    }
+                    line += "<button id="+tempJson.link+" type=\"button\" onclick='favoriteJson(\""+tempJson.pubDate+"\")'>Favorite</button>"
+                    line += "</div>";
+
+                    html += line;
+                };
+
+                document.querySelector("#newContent").innerHTML += html;
+            }
+
+            //Show all button calls this method
+            function showAll() {
+                init(nflUrl, nhlUrl, mlbUrl);
+            }
+
+            //Show NFL button calls this method
+            function showNFL() {
+                showOnlyOne(nflUrl);
+            }
+
+            //Show MLB button calls this method
+            function showMLB() {
+                showOnlyOne(mlbUrl);
+            }
+
+            //Show NHL button calls this method
+            function showNHL() {
+                showOnlyOne(nhlUrl);
+            }
+
+            //Function to find a specific JSON and save it as a favorite
+            function favoriteJson(pubDate) {
+                saveJsonToLocalStorage(overallJson[pubDate]);
+            }
+
+            //Unfavorite an item from local storage
+            function unfavoriteJson(pubDate) {
+                removeJsonFromLocalStorage(pubDate);
+            }
+
+            //Take a single JSON variable and save it to local storage
+            function saveJsonToLocalStorage(jsonData) {
+                if (localStorage) {
+                    var json = {};
+                    if (window.localStorage.getItem("favoritedStuff") != null) {
+                        json = JSON.parse(window.localStorage.getItem("favoritedStuff"));
+                    }
+
+                    json[jsonData.pubDate] = jsonData;
+                    window.localStorage.setItem("favoritedStuff", JSON.stringify(json));
+
+                    loadFavorites();
+                }
+            }
+
+            //Remove a single JSON variable from the local storage
+            function removeJsonFromLocalStorage(pubDate) {
+                if (localStorage) {
+                    var json = {};
+                    if (window.localStorage.getItem("favoritedStuff") != null) {
+                        json = JSON.parse(window.localStorage.getItem("favoritedStuff"));
+
+                        delete json[pubDate];
+
+                        window.localStorage.setItem("favoritedStuff", JSON.stringify(json));
+
+                        loadFavorites();
+                    }
+                }
+            }
+
+            //Load favorited items from local storage
+            function loadFavorites() {
+                if (localStorage) {
+                    var json = {};
+                    if (window.localStorage.getItem("favoritedStuff") != null) {
+                        json = JSON.parse(window.localStorage.getItem("favoritedStuff"));
+                    }
+                    var html = "";
+                
+                    Object.keys(json).forEach(function(k){
+                        var line = '<div class="listitem">';
+                        line += "<headline>"+json[k].title+"</headline>";
+                        line += '<p><i>'+json[k].pubDate+'</i> - <a href="'+json[k].link+'" target="_blank">See original</a></p>';
+                        if (json[k].description != "null") {
+                            line += "<p>"+json[k].description+"</p>";
+                        }
+                        line += "<button id="+json[k].link+" type=\"button\" onclick='unfavoriteJson(\""+json[k].pubDate+"\")'>Unfavorite</button>"
+                        line += "</div>";
+
+                        html += line;
+                    });
+                    
+                    document.querySelector("#favoriteContent").innerHTML = html;
+                }
+            }
+
+            
+        </script>
+
+    <body>    
+        <div id="headerParent">
+            <div id="header">
+                <a id="logoLink"><img id="logo" /></a>
+                <h1>Sports News Aggregate</h1>
+            </div>
+        </div>
+        
+        <div id="newsChangerParent">
+            <div id="newsChanger">
+                <button id="showAll" type="button" onclick='showAll()'>See All</button> 
+                <button id="showNFL" type="button" onclick='showNFL()'>See NFL</button> 
+                <button id="showNHL" type="button" onclick='showNHL()'>See NHL</button> 
+                <button id="showMLB" type="button" onclick='showMLB()'>See MLB</button> 
+            </div>
+        </div>
+    
+        <table id="contentParent">
+            <tr>
+                <th>New Stories</th>
+                <th>Favorited Stories</th>
+            </tr>
+            <tr>
+                <td id="newColumn" valign="top">
+                    <div id="newContent">
+                        <b>No sports news has been loaded.</b>
+                    </div>
+                </td>
+                <td id="favoriteColumn" valign="top">
+                    <div id="favoriteContent">
+                        <b>No favorites news have been made.</b>
+                    </div>
+                </td>
+            </tr>
+        </table>
+
+    </body>
+</html>
