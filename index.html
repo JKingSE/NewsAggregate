@@ -56,47 +56,41 @@
             "use strict";
 
             var overallJson = JSON.parse("{}");
+            var nflJson = JSON.parse("{}");
+            var mlbJson = JSON.parse("{}");
+            var nhlJson = JSON.parse("{}");
 
             //URL's for the three sports
             var nflUrl = "http://www.espn.com/espn/rss/NFL/news";
             var nhlUrl = "http://www.espn.com/espn/rss/NHL/news";
             var mlbUrl = "http://www.espn.com/espn/rss/MLB/news";
             window.onload = function(){
-                init(nflUrl, nhlUrl, mlbUrl);
+                init();
             }
 
             //Load all three url's one after the other.  Add their content to the HTML if they load successfully
-            function init(nflUrl, nhlUrl, mlbUrl){
+            function init(){
                 document.querySelector("#newContent").innerHTML = "";
                 overallJson = JSON.parse("{}");
+                nflJson = JSON.parse("{}");
+                mlbJson = JSON.parse("{}");
+                nhlJson = JSON.parse("{}");
 
-                $.get(nflUrl).done(function(data){addToCurrentJson(data);}).always(
-                    $.get(nhlUrl).done(function(data){addToCurrentJson(data);}).always(
-                        $.get(mlbUrl).done(function(data){addToCurrentJson(data);}).fail(function() {
+                $.get(nflUrl).done(function(data){addToCurrentJson(data, "nfl");}).always(
+                    $.get(nhlUrl).done(function(data){addToCurrentJson(data, "nhl");}).always(
+                        $.get(mlbUrl).done(function(data){addToCurrentJson(data, "mlb");}).fail(function() {
                             if (document.querySelector("#newContent").innerHTML === "") {
                                 document.querySelector("#newContent").innerHTML = "<b>No sports news has been loaded.</b>";
                             }
-                        })
+                        }).always(function(){convertJsonToHTML();})
                     )
                 );
 
                 loadFavorites();
             }
 
-            //Pretty much same as the initial method, but only loads one
-            function showOnlyOne(url) {
-                document.querySelector("#newContent").innerHTML = "";
-                overallJson = JSON.parse("{}");
-
-                $.get(url).done(function(data){addToCurrentJson(data);}).fail(function() {
-                    if (document.querySelector("#newContent").innerHTML === "") {
-                        document.querySelector("#newContent").innerHTML = "<b>No sports news has been loaded.</b>";
-                    }
-                });
-            }
-
             //Method to add the content from the current URL to the HTML
-            function addToCurrentJson(data) {
+            function addToCurrentJson(data, sport) {
                 var receivedItems = data.querySelectorAll("item");
 
                 //Set the logo
@@ -121,51 +115,75 @@
                     curJson["pubDate"] = pubDate;
                     
                     overallJson[pubDate] = curJson;
-                }
 
-                convertJsonToHTML(overallJson);
+                    if (sport === "nfl") {
+                        nflJson[pubDate] = curJson;
+                    } else if (sport === "nhl") {
+                        nhlJson[pubDate] = curJson;
+                    } else if (sport === "mlb") {
+                        mlbJson[pubDate] = curJson;
+                    }
+                }
             }
 
-            //Take the JSON variable created from url's and convert to html in list form
-            function convertJsonToHTML(jsonData) {
+            //Take the JSON variables created from url's and convert to html in list form
+            function convertJsonToHTML() {
                 var html = "";
 
-                for (var key in jsonData) {
-                    var tempJson = jsonData[key];
+                //Check if box is checked, then convert json to html for each sport
+                if ($("#showNFL").is(":checked")) {
+                    for (var key in nflJson) {
+                        var tempJson = nflJson[key];
 
-                    var line = '<div class="listitem">';
-                    line += "<headline>"+tempJson.title+"</headline>";
-                    line += '<p><i>'+tempJson.pubDate+'</i> - <a href="'+tempJson.link+'" target="_blank">See original</a></p>';
-                    if (tempJson.description != "null") {
-                        line += "<p>"+tempJson.description+"</p>";
-                    }
-                    line += "<button id="+tempJson.link+" type=\"button\" onclick='favoriteJson(\""+tempJson.pubDate+"\")'>Favorite</button>"
-                    line += "</div>";
+                        var line = '<div class="listitem">';
+                        line += "<headline>"+tempJson.title+"</headline>";
+                        line += '<p><i>'+tempJson.pubDate+'</i> - <a href="'+tempJson.link+'" target="_blank">See original</a></p>';
+                        if (tempJson.description != "null") {
+                            line += "<p>"+tempJson.description+"</p>";
+                        }
+                        line += "<button id="+tempJson.link+" type=\"button\" onclick='favoriteJson(\""+tempJson.pubDate+"\")'>Favorite</button>"
+                        line += "</div>";
 
-                    html += line;
-                };
+                        html += line;
+                    };
+                }
+                
+
+                if ($("#showMLB").is(":checked")) {
+                    for (var key in mlbJson) {
+                        var tempJson = mlbJson[key];
+
+                        var line = '<div class="listitem">';
+                        line += "<headline>"+tempJson.title+"</headline>";
+                        line += '<p><i>'+tempJson.pubDate+'</i> - <a href="'+tempJson.link+'" target="_blank">See original</a></p>';
+                        if (tempJson.description != "null") {
+                            line += "<p>"+tempJson.description+"</p>";
+                        }
+                        line += "<button id="+tempJson.link+" type=\"button\" onclick='favoriteJson(\""+tempJson.pubDate+"\")'>Favorite</button>"
+                        line += "</div>";
+
+                        html += line;
+                    };
+                }
+
+                if ($("#showNHL").is(":checked")) {
+                    for (var key in nhlJson) {
+                        var tempJson = nhlJson[key];
+
+                        var line = '<div class="listitem">';
+                        line += "<headline>"+tempJson.title+"</headline>";
+                        line += '<p><i>'+tempJson.pubDate+'</i> - <a href="'+tempJson.link+'" target="_blank">See original</a></p>';
+                        if (tempJson.description != "null") {
+                            line += "<p>"+tempJson.description+"</p>";
+                        }
+                        line += "<button id="+tempJson.link+" type=\"button\" onclick='favoriteJson(\""+tempJson.pubDate+"\")'>Favorite</button>"
+                        line += "</div>";
+
+                        html += line;
+                    };
+                }
 
                 document.querySelector("#newContent").innerHTML += html;
-            }
-
-            //Show all button calls this method
-            function showAll() {
-                init(nflUrl, nhlUrl, mlbUrl);
-            }
-
-            //Show NFL button calls this method
-            function showNFL() {
-                showOnlyOne(nflUrl);
-            }
-
-            //Show MLB button calls this method
-            function showMLB() {
-                showOnlyOne(mlbUrl);
-            }
-
-            //Show NHL button calls this method
-            function showNHL() {
-                showOnlyOne(nhlUrl);
             }
 
             //Function to find a specific JSON and save it as a favorite
@@ -286,17 +304,16 @@
         
         <div id="newsChangerParent">
             <div id="newsChanger">
-                <button id="showAll" type="button" onclick='showAll()'>See All</button> 
-                <button id="showNFL" type="button" onclick='showNFL()'>See NFL</button> 
-                <button id="showNHL" type="button" onclick='showNHL()'>See NHL</button> 
-                <button id="showMLB" type="button" onclick='showMLB()'>See MLB</button> 
+                <input id="showNFL" type="checkbox" onchange='init()' checked="true">See NFL</label>
+                <input id="showNHL" type="checkbox" onchange='init()' checked="true">See NHL</label>
+                <input id="showMLB" type="checkbox" onchange='init()' checked="true">See MLB</label>
             </div>
         </div>
     
         <table id="contentParent">
             <tr>
-                <th>New Stories</th>
-                <th>Favorited Stories</th>
+                <th><h2>New Stories</h2></th>
+                <th><h2>Favorited Stories</h2></th>
             </tr>
             <tr>
                 <td id="newColumn" valign="top">
